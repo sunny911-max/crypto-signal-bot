@@ -1,4 +1,0 @@
-flask
-ta
-pandas
-requests
