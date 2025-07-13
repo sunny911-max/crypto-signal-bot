@@ -6,12 +6,7 @@ CHAT_ID = "7545235284"
 
 def send_telegram_message(message):
     print("📨 Preparing to send message...")
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-
+    print(f"[TEST] Would send message: '{message}' to chat_id: {CHAT_ID} with token: {BOT_TOKEN}")
     try:
         response = requests.post(url, data=payload)
         print("📬 Telegram response status:", response.status_code)
