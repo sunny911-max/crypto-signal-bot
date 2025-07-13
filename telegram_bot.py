@@ -2,7 +2,7 @@ import os
 import requests
 
 BOT_TOKEN = os.getenv("7307067620:AAEOHrNskxLEWOcMKvuKtVbrJUYpD0zokMA")
-CHAT_ID = os.getenv("HighRisk_scalper_bot")
+CHAT_ID = os.getenv("7545235284")
 
 def send_telegram_message(message):
     if not BOT_TOKEN or not CHAT_ID:
