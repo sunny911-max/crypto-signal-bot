@@ -1,24 +1,31 @@
 import time
-from signal_logic import analyze_trade_opportunity
+import threading
 from telegram_bot import send_telegram_message
+from signal_logic import check_signals
 
-bot_token = "YOUR_TELEGRAM_BOT_TOKEN"
-chat_id = "YOUR_CHAT_ID"
-tracked_coins = ["bitcoin", "ethereum", "dogecoin", "solana"]
-
-def run_bot():
-    sent_signals = set()
-
+def run_bot_loop():
     while True:
-        for coin in tracked_coins:
-            try:
-                signal = analyze_trade_opportunity(coin)
-                if signal and signal not in sent_signals:
-                    send_telegram_message(bot_token, chat_id, signal)
-                    sent_signals.add(signal)
-            except Exception as e:
-                print(f"Error processing {coin}: {e}")
-        time.sleep(60)  # Check every minute
+        print("📡 Checking for signals...")
+        try:
+            signals = check_signals()
+            for signal in signals:
+                print(f"📨 {signal}")
+                send_telegram_message(signal)
+        except Exception as e:
+            print(f"❌ Error: {e}")
+        time.sleep(60)
 
-if __name__ == "__main__":
-    run_bot()
+# 🟢 Start the bot loop in a thread
+if __name__ == '__main__':
+    thread = threading.Thread(target=run_bot_loop)
+    thread.start()
+
+    # Flask web server
+    from flask import Flask
+    app = Flask(__name__)
+
+    @app.route('/')
+    def home():
+        return "Crypto Signal Bot is running!"
+
+    app.run(host='0.0.0.0', port=10000)
