@@ -1,7 +1,7 @@
 from flask import Flask
 import threading
 import time
-from signal_logic import check_signals
+from signal_logic import generate_dummy_stats
 from telegram_bot import send_telegram_message
 
 app = Flask(__name__)
@@ -9,16 +9,18 @@ app = Flask(__name__)
 def run_bot_loop():
     while True:
         print("Checking for signals...")
-        signal = check_signals()
-        if signal:
+        signal = generate_dummy_stats()
+        print(f"📨 Sending signal:\n{signal}")
+        try:
             send_telegram_message(signal)
-        time.sleep(30)
+        except Exception as e:
+            print(f"❌ Error sending signal: {e}")
+        time.sleep(30)  # Wait before checking again
 
 @app.route('/')
 def home():
-    return "Crypto signal bot is running!"
+    return "Crypto Signal Bot is running!"
 
 if __name__ == '__main__':
-    bot_thread = threading.Thread(target=run_bot_loop)
-    bot_thread.start()
+    threading.Thread(target=run_bot_loop).start()
     app.run(host='0.0.0.0', port=10000)
