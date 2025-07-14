@@ -1,7 +1,6 @@
 import threading
 import time
 from signal_logic import check_signals
-from telegram_bot import send_telegram_message
 from web import app  # your Flask app
 
 import traceback
