@@ -1,45 +1,52 @@
 import requests
+import pandas as pd
 import numpy as np
 
-def generate_signal(symbol="BTCUSDT", interval="1m", limit=100):
-    try:
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-        response = requests.get(url)
-        
-        try:
-            data = response.json()
-        except Exception as json_err:
-            return f"❌ JSON decode error: {str(json_err)}"
+def fetch_price_history(symbol, days=1, interval='hourly'):
+    url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
+    params = {
+        'vs_currency': 'usd',
+        'days': days,
+        'interval': interval
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    prices = data.get('prices', [])
+    if not prices or len(prices) < 15:
+        return None
+    df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+    df['price'] = df['price'].astype(float)
+    return df
 
-        if not isinstance(data, list):
-            return f"❌ Unexpected data format: {data}"
+def compute_rsi(data, period=14):
+    delta = data.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
-        if len(data) < 15:
-            return f"❌ Not enough data to analyze {symbol} (got {len(data)} candles)"
+def check_signals():
+    symbols = {
+        'bitcoin': 'BTC',
+        'ethereum': 'ETH',
+        'solana': 'SOL'
+    }
+    results = []
 
-        # Extract close prices safely
-        try:
-            closes = [float(candle[4]) for candle in data if len(candle) > 4]
-        except Exception as close_err:
-            return f"❌ Failed to parse candle closes: {str(close_err)}"
+    for coingecko_id, symbol in symbols.items():
+        df = fetch_price_history(coingecko_id)
+        if df is None or df.empty:
+            results.append(f"❌ Not enough data for {symbol}")
+            continue
 
-        if len(closes) < 15:
-            return f"❌ Not enough close data to calculate RSI"
+        df['rsi'] = compute_rsi(df['price'])
+        latest_rsi = df['rsi'].iloc[-1]
 
-        # Calculate RSI
-        deltas = np.diff(closes)
-        seed = deltas[:14]
-        up = seed[seed > 0].sum() / 14
-        down = -seed[seed < 0].sum() / 14 if seed[seed < 0].sum() != 0 else 1e-10
-        rs = up / down
-        rsi = 100 - (100 / (1 + rs))
-
-        if rsi < 30:
-            return f"📈 Potential BUY opportunity for {symbol} (RSI={rsi:.2f})"
-        elif rsi > 70:
-            return f"📉 Potential SELL warning for {symbol} (RSI={rsi:.2f})"
+        if latest_rsi < 30:
+            results.append(f"✅ Potential BUY signal for {symbol} | RSI: {latest_rsi:.2f}")
+        elif latest_rsi > 70:
+            results.append(f"🔻 Overbought {symbol} | RSI: {latest_rsi:.2f}")
         else:
-            return f"🤖 {symbol} RSI is {rsi:.2f} — Neutral."
+            results.append(f"📉 Neutral {symbol} | RSI: {latest_rsi:.2f}")
 
-    except Exception as e:
-        return f"❌ Error generating signal: {str(e)}"
+    return results
