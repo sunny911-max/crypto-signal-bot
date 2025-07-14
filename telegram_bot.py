@@ -1,21 +1,29 @@
-import requests
+import threading
+import time
+from signal_logic import check_signals
+from telegram_bot import send_telegram_message
+from web import app  # your Flask app
+
 import traceback
 
-BOT_TOKEN = "7750164805:AAE1H7HB5aeq5-a8onpZiIZ1PJM7SNGI1Po"
-CHAT_ID = "7545235284"
-
-def send_telegram_message(message):
-    print("📨 Preparing to send message...")
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-
+def run_bot_loop():
     try:
-        response = requests.post(url, data=payload)
-        print("📬 Telegram response status:", response.status_code)
-        print("📬 Telegram response body:", response.text)
+        while True:
+            print("Checking for signals...")
+            signals = check_signals()
+            for signal in signals:
+                print("Sending signal:", signal)
+                send_telegram_message(signal)
+            time.sleep(30)
     except Exception as e:
-        print("❌ Error sending message:", str(e))
+        print("❌ Exception in run_bot_loop:", e)
         traceback.print_exc()
+
+# ✅ Start background thread
+threading.Thread(target=run_bot_loop, daemon=True).start()
+
+# ✅ Keep the app alive on Render (port 10000 or dynamic)
+if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
