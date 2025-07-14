@@ -1,24 +1,26 @@
+from flask import Flask
+import threading
 import time
 from signal_logic import check_signals
 from telegram_bot import send_telegram_message
-from flask import Flask
 
 app = Flask(__name__)
 
 def run_bot_loop():
     while True:
         print("Checking for signals...")
-        signal = check_signals()
-        if signal:
-                print("📨 Sending test signal to check Telegram...")
-send_telegram_message("✅ Test signal: Bot is running successfully.")
-        time.sleep(30)  # ✅ This line must align with the `if` block
+        # Temporarily always send a message for testing
+        send_telegram_message("✅ Test signal: Bot is running successfully.")
+        time.sleep(30)  # ⬅️ Correctly indented under `while`
 
 @app.route('/')
-def index():
-    return "Bot is running"
+def home():
+    return "Crypto signal bot is running!"
 
 if __name__ == '__main__':
-    import threading
-    threading.Thread(target=run_bot_loop).start()
+    # Start bot loop in background
+    bot_thread = threading.Thread(target=run_bot_loop)
+    bot_thread.start()
+
+    # Run Flask app
     app.run(host='0.0.0.0', port=10000)
