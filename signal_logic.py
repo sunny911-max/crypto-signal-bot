@@ -1,39 +1,33 @@
 import requests
 import numpy as np
 
-def get_klines(symbol="BTCUSDT", interval="1m", limit=100):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    response = requests.get(url)
-    data = response.json()
-    closes = [float(candle[4]) for candle in data]
-    return closes
-
-def calculate_rsi(closes, period=14):
-    if len(closes) < period:
-        return 50
-    deltas = np.diff(closes)
-    gains = deltas[deltas > 0].sum() / period
-    losses = -deltas[deltas < 0].sum() / period
-    if losses == 0:
-        return 100
-    rs = gains / losses
-    rsi = 100 - (100 / (1 + rs))
-    return round(rsi, 2)
-
-def generate_signal(symbol="BTCUSDT"):
+def generate_signal(symbol="BTCUSDT", interval="1m", limit=100):
     try:
-        closes = get_klines(symbol)
-        rsi = calculate_rsi(closes)
-        price = closes[-1]
-        signal = None
+        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+        response = requests.get(url)
+        data = response.json()
 
+        if not isinstance(data, list) or len(data) < 15:
+            return f"❌ Not enough data to analyze {symbol}"
+
+        # Extract closing prices
+        closes = [float(candle[4]) for candle in data]
+
+        # RSI calculation
+        deltas = np.diff(closes)
+        seed = deltas[:14]
+        up = seed[seed > 0].sum() / 14
+        down = -seed[seed < 0].sum() / 14 if seed[seed < 0].sum() != 0 else 1e-10
+        rs = up / down
+        rsi = 100 - (100 / (1 + rs))
+
+        # Debug line (optional): print(f"RSI: {rsi:.2f}")
         if rsi < 30:
-            signal = f"📉 *Buy signal for* ${symbol}\nPrice: ${price:.2f}\nRSI: {rsi} (Oversold)"
+            return f"📈 Potential BUY opportunity for {symbol} (RSI={rsi:.2f})"
         elif rsi > 70:
-            signal = f"📈 *Sell signal for* ${symbol}\nPrice: ${price:.2f}\nRSI: {rsi} (Overbought)"
+            return f"📉 Potential SELL warning for {symbol} (RSI={rsi:.2f})"
         else:
-            signal = f"⚠️ *Neutral for* ${symbol}\nPrice: ${price:.2f}\nRSI: {rsi}"
+            return f"🤖 {symbol} RSI is {rsi:.2f} — No strong signal now."
 
-        return signal
     except Exception as e:
-        return f"❌ Error generating signal: {e}"
+        return f"❌ Error generating signal: {str(e)}"
