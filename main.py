@@ -11,9 +11,8 @@ def run_bot_loop():
         signal = check_signals()
 
         if signal:
-            print(f"📨 Sending signal: {signal}")
-            send_telegram_message(signal)
-
+            print(f"📨 Sending test signal...")
+send_telegram_message("✅ Test: Bot running. No real signal triggered.")
         time.sleep(30)
 
 @app.route('/')
