@@ -1,62 +1,61 @@
 import requests
 import pandas as pd
+import numpy as np
+import datetime
 
-def analyze_trade_opportunity(symbol_id="bitcoin", vs_currency="usd"):
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol_id}/market_chart"
-    params = {"vs_currency": vs_currency, "days": "1", "interval": "minute"}
-    response = requests.get(url, params=params)
+def fetch_ohlc_data(coin_id='bitcoin', currency='usd', days=1):
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params = {
+        'vs_currency': currency,
+        'days': days,
+        'interval': 'hourly'
+    }
+    response = requests.get(url)
     data = response.json()
 
-    prices = data["prices"]
-    volumes = data["total_volumes"]
+    if 'prices' not in data:
+        print(f"❌ Unexpected data format for {coin_id}: {data}")
+        return None
 
-    df = pd.DataFrame(prices, columns=["timestamp", "price"])
-    df["volume"] = [v[1] for v in volumes]
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df.set_index("timestamp", inplace=True)
+    prices = data['prices']
+    df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+    df['price'] = df['price'].astype(float)
+    return df
 
-    df["delta"] = df["price"].diff()
-    df["gain"] = df["delta"].apply(lambda x: x if x > 0 else 0)
-    df["loss"] = df["delta"].apply(lambda x: -x if x < 0 else 0)
-    avg_gain = df["gain"].rolling(window=14).mean().iloc[-1]
-    avg_loss = df["loss"].rolling(window=14).mean().iloc[-1]
-    rs = avg_gain / avg_loss if avg_loss != 0 else 1
+def calculate_rsi(df, period=14):
+    delta = df['price'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
+    return rsi
 
-    avg_volume = df["volume"].rolling(window=30).mean().iloc[-1]
-    current_volume = df["volume"].iloc[-1]
-    volume_spike = current_volume / avg_volume if avg_volume else 1
+def generate_signal(coin_id, threshold=30):
+    df = fetch_ohlc_data(coin_id)
+    if df is None or len(df) < 20:
+        print(f"❌ Not enough data to analyze {coin_id}")
+        return None
 
-    last_price = df["price"].iloc[-1]
-    old_price = df["price"].iloc[-61] if len(df) > 61 else df["price"].iloc[0]
-    price_change = ((last_price - old_price) / old_price) * 100
+    rsi = calculate_rsi(df)
+    latest_rsi = rsi.iloc[-1]
+    price = df['price'].iloc[-1]
 
-    confidence = 0
-    reason = ""
+    if latest_rsi < threshold:
+        return f"✅ Potential BUY opportunity for {coin_id.upper()} at ${price:.2f} (RSI: {latest_rsi:.2f})"
+    else:
+        print(f"ℹ️ {coin_id.upper()} RSI is {latest_rsi:.2f} — no signal.")
+        return None
 
-    if rsi < 30:
-        confidence += 30
-        reason += f"📉 RSI={rsi:.2f} (Oversold)\n"
-    elif rsi > 70:
-        confidence += 30
-        reason += f"📈 RSI={rsi:.2f} (Overbought)\n"
+def check_signals():
+    coin_list = ['bitcoin', 'ethereum', 'solana', 'dogecoin']
+    signals = []
 
-    if volume_spike > 1.8:
-        confidence += 30
-        reason += f"🔊 Volume spike: {current_volume/1e6:.2f}M vs avg {avg_volume/1e6:.2f}M\n"
-
-    if abs(price_change) >= 1.2:
-        confidence += 20
-        reason += f"💥 Price moved {price_change:+.2f}% in last hour\n"
-
-    if confidence >= 70:
-        signal_type = "BUY" if rsi < 30 else "SELL"
-        return (
-            f"🚨 *Trade Opportunity*: {symbol_id.upper()}/USDT\n\n"
-            f"📈 Signal: *{signal_type}*\n"
-            f"{reason}"
-            f"📊 Confidence Score: {confidence} / 100\n"
-            f"🕒 Timeframe: 1h"
-        )
-
-    return None
+    for coin in coin_list:
+        try:
+            signal = generate_signal(coin)
+            if signal:
+                signals.append(signal)
+        except Exception as e:
+            print(f"❌ Error generating signal for {coin}: {e}")
+    
+    return signals
