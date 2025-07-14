@@ -7,13 +7,12 @@ app = Flask(__name__)
 
 def run_bot_loop():
     while True:
-        print("🔁 Checking for signals...")
+        print("Checking for signals...")
         signal = check_signals()
-
         if signal:
-            print(f"📨 Sending test signal...")
-send_telegram_message("✅ Test: Bot running. No real signal triggered.")
-        time.sleep(30)
+            print(f"📨 Sending signal: {signal}")
+            send_telegram_message(signal)
+        time.sleep(30)  # ✅ This line must align with the `if` block
 
 @app.route('/')
 def index():
