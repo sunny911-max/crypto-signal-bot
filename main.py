@@ -10,8 +10,8 @@ def run_bot_loop():
         print("Checking for signals...")
         signal = check_signals()
         if signal:
-            print(f"📨 Sending signal: {signal}")
-            send_telegram_message(signal)
+                print("📨 Sending test signal to check Telegram...")
+send_telegram_message("✅ Test signal: Bot is running successfully.")
         time.sleep(30)  # ✅ This line must align with the `if` block
 
 @app.route('/')
